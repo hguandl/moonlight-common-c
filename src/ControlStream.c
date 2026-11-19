@@ -1516,8 +1516,20 @@ static void controlReceiveThreadFunc(void* context) {
                 PltUnlockMutex(&hdrMutex);
             }
 
-            // Process client callbacks in a separate thread
-            if (needsAsyncCallback(ctlHdr->type)) {
+            // PCM callbacks consume borrowed data directly; other callbacks use the queue.
+            if (ctlHdr->type == ML_HAPTICS_PACKET_TYPE) {
+                const uint8_t* payload = (const uint8_t*)(ctlHdr + 1);
+                size_t length = packetLength - sizeof(*ctlHdr);
+                if (IS_SUNSHINE() && event.channelID == ML_HAPTICS_CHANNEL &&
+                        ListenerCallbacks.controllerHaptics != NULL &&
+                        MlHapticsValidate(payload, length)) {
+                    ListenerCallbacks.controllerHaptics(MlHapticsRead16(payload + 2),
+                                                       MlHapticsRead32(payload + 4),
+                                                       payload + ML_HAPTICS_HEADER_SIZE,
+                                                       MlHapticsRead16(payload + 8));
+                }
+            }
+            else if (needsAsyncCallback(ctlHdr->type)) {
                 queueAsyncCallback(ctlHdr, packetLength);
             }
             else if (ctlHdr->type == packetTypes[IDX_TERMINATION]) {
