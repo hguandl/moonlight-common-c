@@ -1225,6 +1225,12 @@ static void queueAsyncCallback(PNVCTL_ENET_PACKET_HEADER_V1 ctlHdr, int packetLe
 
     LC_ASSERT(needsAsyncCallback(ctlHdr->type));
 
+    if (ctlHdr->type == packetTypes[IDX_DS_ADAPTIVE_TRIGGERS] &&
+            packetLength < (int)sizeof(*ctlHdr) + 5 + 2 * DS_EFFECT_PAYLOAD_SIZE) {
+        Limelog("Discarding runt adaptive trigger packet: %d\n", packetLength);
+        return;
+    }
+
     queuedCb = malloc(sizeof(*queuedCb));
     if (!queuedCb) {
         return;
